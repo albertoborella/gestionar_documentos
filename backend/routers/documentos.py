@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from pathlib import Path
 from datetime import datetime, timezone
 from database import DocumentSession
+from uuid import uuid4
 from models import (
     Documento,
     OrigenDocumento,
@@ -59,40 +60,35 @@ async def crear_documento(
     DOCUMENTOS_DIR.mkdir(parents=True, exist_ok=True)
 
     if not archivo or not archivo.filename:
-        raise HTTPException(status_code=400, detail="No se proporcionó un archivo válido.")
+        raise HTTPException(400, "No se proporcionó un archivo válido")
 
+    # 🔹 EXTENSIÓN REAL
     extension = Path(archivo.filename).suffix.lower()
 
+    print("Archivo recibido:", archivo.filename)
+    print("Extensión detectada:", extension)
+
     if extension not in EXTENSIONES_PERMITIDAS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Extensión no permitida ({extension})."
-        )
+        raise HTTPException(400, f"Extensión no permitida ({extension})")
 
     if archivo.content_type not in MIME_PERMITIDOS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Tipo de archivo no permitido ({archivo.content_type})."
-        )
+        raise HTTPException(400, f"Tipo MIME no permitido ({archivo.content_type})")
 
+    # 🔹 Nombre final
     titulo_limpio = limpiar_nombre(titulo)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
     nombre_archivo = f"{titulo_limpio}_{timestamp}{extension}"
-
     ruta = DOCUMENTOS_DIR / nombre_archivo
 
-    # 🔹 Guardar archivo
-    with open(ruta, "wb") as buffer:
+    # 🔹 Guardar archivo (UNA SOLA VEZ)
+    with ruta.open("wb") as buffer:
         shutil.copyfileobj(archivo.file, buffer)
 
     tamanio = ruta.stat().st_size
 
     if tamanio > TAMANIO_MAXIMO:
         ruta.unlink(missing_ok=True)
-        raise HTTPException(
-            status_code=400,
-            detail="El archivo supera el tamaño máximo permitido (10MB)."
-        )
+        raise HTTPException(400, "El archivo supera los 10MB")
 
     documento = Documento(
         titulo=titulo,
@@ -117,6 +113,7 @@ async def crear_documento(
     session.refresh(documento)
 
     return documento
+
 
 
 
