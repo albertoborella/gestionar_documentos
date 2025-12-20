@@ -17,8 +17,11 @@ def subir_documento() -> rx.Component:
                 rx.input(
                     type="file",
                     name="archivo",
+                    accept=".pdf,.doc,.docx,.xls,.xlsx",
                     required=True,
+                    size="2",
                 ),
+
 
                 rx.button("Guardar", type="submit"),
                 spacing="3",
