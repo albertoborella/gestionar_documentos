@@ -1,112 +1,55 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from pathlib import Path
 from datetime import datetime, timezone
-from database import DocumentSession
-from uuid import uuid4
-from models import (
-    Documento,
-    OrigenDocumento,
-    SeccionDocumento,
-    TipoDocumento,
-    EstadoDocumento,
-)
-import re
-import shutil
+from fastapi.responses import FileResponse
+from sqlmodel import Session, select
+
+from database import get_session
+from models import Documento, SeccionDocumento
 
 router = APIRouter(
     prefix="/documentos",
-    tags=["documentos"],
+    tags=["Documentos"],
 )
 
+# ===========================
+# Subir un documento
+# ===========================
+
 DOCUMENTOS_DIR = Path("documentos")
+DOCUMENTOS_DIR.mkdir(exist_ok=True)
 
-EXTENSIONES_PERMITIDAS = {
-    ".pdf",
-    ".xls",
-    ".xlsx",
-    ".doc",
-    ".docx",
-}
-
-MIME_PERMITIDOS = {
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.ms-excel",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-}
-
-TAMANIO_MAXIMO = 10 * 1024 * 1024  # 10MB
-
-
-def limpiar_nombre(texto: str) -> str:
-    texto = texto.strip().lower()
-    texto = re.sub(r"[^\w\-]+", "_", texto)
-    return texto
-
-
-@router.post("/upload/", response_model=Documento)
-async def crear_documento(
-    titulo: str = Form(...),
-    subtitulo: str | None = Form(None),
-    descripcion: str | None = Form(None),
-    origen: OrigenDocumento = Form(...),
-    seccion: SeccionDocumento = Form(...),
-    tipo: TipoDocumento = Form(...),
-    estado: EstadoDocumento = Form(...),
-    archivo: UploadFile = File(...),
-    session: DocumentSession = None,
+@router.post("/upload/")
+async def upload_documento(
+    file: UploadFile = File(...),   # 🔥 CLAVE ABSOLUTA
+    session: Session = Depends(get_session),
 ):
-    DOCUMENTOS_DIR.mkdir(parents=True, exist_ok=True)
+    ruta = DOCUMENTOS_DIR / file.filename
 
-    if not archivo or not archivo.filename:
-        raise HTTPException(400, "No se proporcionó un archivo válido")
+    with open(ruta, "wb") as f:
+        f.write(await file.read())
 
-    # 🔹 EXTENSIÓN REAL
-    extension = Path(archivo.filename).suffix.lower()
-
-    print("Archivo recibido:", archivo.filename)
-    print("Extensión detectada:", extension)
-
-    if extension not in EXTENSIONES_PERMITIDAS:
-        raise HTTPException(400, f"Extensión no permitida ({extension})")
-
-    if archivo.content_type not in MIME_PERMITIDOS:
-        raise HTTPException(400, f"Tipo MIME no permitido ({archivo.content_type})")
-
-    # 🔹 Nombre final
-    titulo_limpio = limpiar_nombre(titulo)
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
-    nombre_archivo = f"{titulo_limpio}_{timestamp}{extension}"
-    ruta = DOCUMENTOS_DIR / nombre_archivo
-
-    # 🔹 Guardar archivo (UNA SOLA VEZ)
-    with ruta.open("wb") as buffer:
-        shutil.copyfileobj(archivo.file, buffer)
-
-    tamanio = ruta.stat().st_size
-
-    if tamanio > TAMANIO_MAXIMO:
-        ruta.unlink(missing_ok=True)
-        raise HTTPException(400, "El archivo supera los 10MB")
+    ahora = datetime.now(timezone.utc)
 
     documento = Documento(
-        titulo=titulo,
-        subtitulo=subtitulo,
-        descripcion=descripcion,
-        origen=origen,
-        seccion=seccion,
-        tipo=tipo,
-        estado=estado,
-        nombre_original=archivo.filename,
-        nombre_archivo=nombre_archivo,
-        extension=extension,
-        mime_type=archivo.content_type,
-        tamanio=tamanio,
-        ruta=str(ruta),
-        fecha_creacion=datetime.now(timezone.utc),
-        fecha_actualizacion=datetime.now(timezone.utc),
-    )
+    titulo=file.filename,
+    subtitulo="",
+    descripcion="",
+    origen="interno",              
+    seccion="administracion",      
+    tipo="registro",               
+    estado="vigente",
+
+    nombre_original=file.filename,
+    nombre_archivo=file.filename,
+    extension=ruta.suffix,
+    mime_type=file.content_type,   
+    tamanio=ruta.stat().st_size,
+    ruta=str(ruta),
+
+    fecha_creacion=ahora,
+    fecha_actualizacion=ahora,
+)
 
     session.add(documento)
     session.commit()
@@ -114,40 +57,50 @@ async def crear_documento(
 
     return documento
 
-
-
-
-
-
+# ===========================
+# Obtener documento por ID
+# ===========================
 @router.get("/{documento_id}/", response_model=Documento)
-async def obtener_documento(documento_id: int, session: DocumentSession = None):
+async def obtener_documento(
+    documento_id: int, 
+    session: Session = Depends(get_session)
+):
     documento = session.get(Documento, documento_id)
     if not documento:
-        raise HTTPException(status_code=404, detail="Documento no encontrado.")
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
     return documento
 
-
+# ===========================
+# Ver o descargar documento
+# ===========================
 @router.get("/{documento_id}/ver")
-async def ver_documento(documento_id: int, session: DocumentSession = None):
+async def ver_documento(
+    documento_id: int, 
+    session: Session = Depends(get_session)
+):
     documento = session.get(Documento, documento_id)
     if not documento:
-        raise HTTPException(status_code=404, detail="Documento no encontrado.")
-    
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+
     ruta = Path(documento.ruta)
     if not ruta.exists():
-        raise HTTPException(status_code=404, detail="Archivo del documento no encontrado.")
-    
-    return FileResponse(
-        path=ruta, 
-        media_type=documento.mime_type, 
-        filename=documento.nombre_original,
-        )
+        raise HTTPException(status_code=404, detail="Archivo del documento no encontrado")
 
+    return FileResponse(
+        path=ruta,
+        media_type=documento.mime_type,
+        filename=documento.nombre_original,
+    )
+
+# ===========================
+# Listar todos los documentos
+# ===========================
 @router.get("/", response_model=list[Documento])
-def listar_documentos(session: DocumentSession = None):
+def listar_documentos(session: Session = Depends(get_session)):
     statement = select(Documento)
     documentos = session.exec(statement).all()
     if not documentos:
-        raise HTTPException(status_code=404, detail="No se encontraron documentos.")
+        raise HTTPException(status_code=404, detail="No se encontraron documentos")
     return documentos
+
 

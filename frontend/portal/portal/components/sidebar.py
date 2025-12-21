@@ -6,7 +6,6 @@ def sidebar() -> rx.Component:
             rx.heading("Gestión Documental", size="5"),
             rx.divider(),
             rx.link("🏠 Home", href="/"),
-            rx.link("📄 Subir documento", href="/subir-documento"),
             rx.link("📂 Listar documentos", href="/listar-documentos"),
             spacing="3",
             align="start",
