@@ -42,7 +42,6 @@ class Documento(DocumentoBase, table=True):
 
     # 📄 INFO DEL ARCHIVO
     nombre_original: str
-    nombre_archivo: str
     extension: str
     mime_type: str
     tamanio: int

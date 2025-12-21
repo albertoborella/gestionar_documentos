@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 from sqlmodel import Session, select
 
 from database import get_session
-from models import Documento, SeccionDocumento
+from models import Documento, DocumentoModificar, EstadoDocumento, OrigenDocumento, SeccionDocumento, TipoDocumento
 
 router = APIRouter(
     prefix="/documentos",
@@ -35,13 +35,13 @@ async def upload_documento(
     titulo=file.filename,
     subtitulo="",
     descripcion="",
-    origen="interno",              
-    seccion="administracion",      
-    tipo="registro",               
-    estado="vigente",
+
+    origen=OrigenDocumento.interno,
+    seccion=SeccionDocumento.administracion,  
+    tipo=TipoDocumento.registro,               
+    estado=EstadoDocumento.borrador,
 
     nombre_original=file.filename,
-    nombre_archivo=file.filename,
     extension=ruta.suffix,
     mime_type=file.content_type,   
     tamanio=ruta.stat().st_size,
@@ -56,6 +56,32 @@ async def upload_documento(
     session.refresh(documento)
 
     return documento
+
+# ===========================
+# Modificar un documento
+# ===========================
+
+@router.put("/{documento_id}")
+def modificar_documento(
+    documento_id: int,
+    datos: DocumentoModificar,
+    session: Session = Depends(get_session),
+):
+    documento = session.get(Documento, documento_id)
+    if not documento:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+    for campo, valor in datos.model_dump().items():
+        setattr(documento, campo, valor)
+
+    documento.fecha_actualizacion = datetime.now(timezone.utc)
+
+    session.add(documento)
+    session.commit()
+    session.refresh(documento)
+
+    return documento
+
 
 # ===========================
 # Obtener documento por ID
