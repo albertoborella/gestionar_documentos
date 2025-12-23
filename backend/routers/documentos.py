@@ -1,11 +1,14 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Query
 from pathlib import Path
 from datetime import datetime, timezone
 from fastapi.responses import FileResponse
 from sqlmodel import Session, select
+from sqlalchemy import or_
 
 from database import get_session
 from models import Documento, DocumentoModificar, EstadoDocumento, OrigenDocumento, SeccionDocumento, TipoDocumento
+
+
 
 router = APIRouter(
     prefix="/documentos",
@@ -128,5 +131,41 @@ def listar_documentos(session: Session = Depends(get_session)):
     if not documentos:
         raise HTTPException(status_code=404, detail="No se encontraron documentos")
     return documentos
+
+# ===========================
+# Listar por filtros
+# ===========================
+
+@router.get("/buscar", response_model=list[Documento])
+def buscar_documentos(
+    texto: str | None = Query(default=None),
+    origen: OrigenDocumento | None = None,
+    seccion: SeccionDocumento | None = None,
+    estado: EstadoDocumento | None = None,
+    session: Session = Depends(get_session),
+):
+    statement = select(Documento)
+
+    if texto:
+        like = f"%{texto}%"
+        statement = statement.where(
+            or_(
+                Documento.titulo.ilike(like),
+                Documento.subtitulo.ilike(like),
+                Documento.descripcion.ilike(like),
+            )
+        )
+
+    if origen:
+        statement = statement.where(Documento.origen == origen)
+
+    if seccion:
+        statement = statement.where(Documento.seccion == seccion)
+
+    if estado:
+        statement = statement.where(Documento.estado == estado)
+
+    return session.exec(statement).all()
+
 
 

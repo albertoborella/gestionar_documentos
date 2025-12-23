@@ -7,6 +7,8 @@ def sidebar() -> rx.Component:
             rx.divider(),
             rx.link("🏠 Home", href="/"),
             rx.link("📂 Listar documentos", href="/listar-documentos"),
+            rx.link("Modificar documento"),
+            rx.link("Filtrar documentos"),
             spacing="3",
             align="start",
         ),

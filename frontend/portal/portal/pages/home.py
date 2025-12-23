@@ -1,7 +1,6 @@
 import reflex as rx
 from portal.components.layout import layout
 
-
 @rx.page(route="/")
 def home() -> rx.Component:
     return layout(
