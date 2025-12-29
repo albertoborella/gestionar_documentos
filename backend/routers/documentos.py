@@ -16,6 +16,17 @@ router = APIRouter(
 )
 
 # ===========================
+# Enums dinámicos
+# ===========================
+
+@router.get("/enums")
+def obtener_enums():
+    return {
+        "origen": [e.value for e in OrigenDocumento],
+        "seccion": [e.value for e in SeccionDocumento],
+        "estado": [e.value for e in EstadoDocumento],
+    }
+# ===========================
 # Subir un documento
 # ===========================
 

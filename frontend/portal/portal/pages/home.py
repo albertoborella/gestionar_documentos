@@ -4,14 +4,16 @@ from portal.components.layout import layout
 @rx.page(route="/")
 def home() -> rx.Component:
     return layout(
-        rx.vstack(
-            rx.heading("Bienvenido", size="7"),
-            rx.text(
-                "Sistema de gestión de documentos. "
-                "Desde aquí podrás subir, organizar y consultar documentación.",
-                max_width="600px",
+        rx.center(
+            rx.vstack(
+                rx.heading("Bienvenido", size="7"),
+                rx.text(
+                    "Sistema de gestión de documentos. "
+                    "Desde aquí podrás filtrar y consultar documentación que deses",
+                ),
+                spacing="4",
+                align="center",
             ),
-            spacing="4",
-            align="start",
+            width="100%",
         )
     )

@@ -18,28 +18,71 @@ class DocumentosState(rx.State):
     loading: bool = False
     error: str = ""
 
-    async def cargar_documentos(self):
+    # Filtros
+    texto: str = ""
+    origen: str = ""
+    seccion: str = ""
+    estado: str = ""
+
+    # Enums dinámicos
+    origenes: list[str] = []
+    secciones: list[str] = []
+    estados: list[str] = []
+
+    # ✅ setters explícitos (evitan warnings y futuro break)
+    def set_texto(self, value: str):
+        self.texto = value
+
+    def set_origen(self, value: str):
+        self.origen = value
+
+    def set_seccion(self, value: str):
+        self.seccion = value
+
+    def set_estado(self, value: str):
+        self.estado = value
+
+    async def cargar_enums(self):
+        try:
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    "http://127.0.0.1:8001/documentos/enums"
+                )
+                data = resp.json()
+                self.origenes = data.get("origen", [])
+                self.secciones = data.get("seccion", [])
+                self.estados = data.get("estado", []) 
+
+        except Exception as e:
+            self.error = f"Error cargando enums: {e}"  
+
+
+    async def buscar(self):
         self.loading = True
         self.error = ""
+
+        params = {}
+        if self.texto:
+            params["texto"] = self.texto
+        if self.origen:
+            params["origen"] = self.origen
+        if self.seccion:
+            params["seccion"] = self.seccion
+        if self.estado:
+            params["estado"] = self.estado
+
 
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    "http://127.0.0.1:8001/documentos/"
+                    "http://127.0.0.1:8001/documentos/buscar",
+                    params=params,
                 )
                 response.raise_for_status()
 
                 self.documentos = [
-                    Documento(
-                        titulo=d["titulo"],
-                        subtitulo=d["subtitulo"],
-                        descripcion=d["descripcion"],
-                        origen=d["origen"],
-                        seccion=d["seccion"],
-                        estado=d["estado"],
-                        ruta=d["ruta"],
-                    )
-                    for d in response.json()
+                    Documento(**d) for d in response.json()
                 ]
 
         except Exception as e:
@@ -48,6 +91,12 @@ class DocumentosState(rx.State):
         finally:
             self.loading = False
 
+    def limpiar_filtros(self):
+        self.texto = ""
+        self.origen = ""
+        self.seccion = ""
+        self.estado = ""
+        return DocumentosState.buscar
 
 
 

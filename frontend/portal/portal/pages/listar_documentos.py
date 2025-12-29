@@ -7,9 +7,9 @@ def fila_documento(doc):
     return rx.table.row(
         rx.table.row_header_cell(doc.titulo),
         rx.table.cell(doc.subtitulo),
+        rx.table.cell(doc.seccion),
         rx.table.cell(doc.descripcion),
         rx.table.cell(doc.origen),
-        rx.table.cell(doc.seccion),
         rx.table.cell(doc.estado),
         rx.table.cell(
             rx.link(
@@ -23,7 +23,10 @@ def fila_documento(doc):
 
 @rx.page(
     route="/listar-documentos",
-    on_load=DocumentosState.cargar_documentos,
+    on_load=[
+        DocumentosState.cargar_enums,
+        DocumentosState.buscar,
+    ]
 )
 def listar_documentos() -> rx.Component:
     #return layout(
@@ -36,9 +39,54 @@ def listar_documentos() -> rx.Component:
                     DocumentosState.error,
                     color="red",
                 ),
+
+                rx.vstack(
+                rx.link("Volver al menú >", href="/"),
+
+                # 🔎 FILTROS
+                rx.hstack(
+                    rx.input(
+                        placeholder="Buscar texto…",
+                        value=DocumentosState.texto,
+                        on_change=DocumentosState.set_texto,
+                        width="250px",
+                    ),
+                    rx.select(
+                        DocumentosState.origenes,
+                        placeholder="Origen",
+                        value=DocumentosState.origen,
+                        on_change=DocumentosState.set_origen,
+                    ),
+                    rx.select(
+                        DocumentosState.secciones,
+                        placeholder="Sección",
+                        value=DocumentosState.seccion,
+                        on_change=DocumentosState.set_seccion,
+                    ),
+                    rx.select(
+                        DocumentosState.estados,    
+                        placeholder="Estado",
+                        value=DocumentosState.estado,
+                        on_change=DocumentosState.set_estado,
+                    ),
+                    rx.button(
+                        "Buscar",
+                        on_click=DocumentosState.buscar,
+                        color_scheme="blue",
+                    ),
+                    rx.button(
+                        "Limpiar",
+                        on_click=DocumentosState.limpiar_filtros,
+                        variant="outline",
+                    ),
+                    spacing="3",
+                    wrap="wrap",
+                    justify="center",
+                    width="100%",
+                ),
+                
                 rx.table.root(
                     rx.table.header(
-                        rx.link("Volver al menú >", href="/"),
                         rx.table.row(
                             rx.table.column_header_cell("Título"),
                             rx.table.column_header_cell("Subtítulo"),
@@ -60,4 +108,5 @@ def listar_documentos() -> rx.Component:
                 ),
             ),
         )
-    #)
+    
+    )
