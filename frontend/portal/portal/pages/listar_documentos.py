@@ -12,13 +12,22 @@ def fila_documento(doc):
         rx.table.cell(doc.origen),
         rx.table.cell(doc.estado),
         rx.table.cell(
-            rx.link(
-                "Abrir",
-                href=f"http://127.0.0.1:8001/{doc.ruta}",
-                is_external=True,
+            rx.hstack(
+                rx.link(
+                    "Ver",
+                    href=DocumentosState.url_ver_documento(doc.id),
+                    is_external=True,
+                ),
+                rx.link(
+                    "Editar",
+                    href=DocumentosState.url_editar_documento(doc.id),
+                ),
+                spacing="3",
             )
         ),
     )
+
+
 
 
 @rx.page(

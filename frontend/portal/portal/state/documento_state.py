@@ -4,6 +4,7 @@ import httpx
 
 
 class Documento(BaseModel):
+    id: int
     titulo: str
     subtitulo: str
     descripcion: str
@@ -97,6 +98,14 @@ class DocumentosState(rx.State):
         self.seccion = ""
         self.estado = ""
         return DocumentosState.buscar
+    
+    @staticmethod
+    def url_ver_documento(documento_id: int) -> str:
+        return f"http://127.0.0.1:8001/documentos/{documento_id}/ver"
+
+    @staticmethod
+    def url_editar_documento(documento_id: int) -> str:
+        return f"/editar-documento/{documento_id}"
     
 
 class DocumentoEditState(rx.State):
