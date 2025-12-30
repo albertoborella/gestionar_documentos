@@ -42,6 +42,7 @@ def listar_documentos() -> rx.Component:
 
                 rx.vstack(
                 rx.link("Volver al menú >", href="/"),
+                rx.text("Listado de Documentos", font_size="2xl", font_weight="bold"),
 
                 # 🔎 FILTROS
                 rx.hstack(
@@ -83,6 +84,7 @@ def listar_documentos() -> rx.Component:
                     wrap="wrap",
                     justify="center",
                     width="100%",
+                    margin_top="-40px",
                 ),
                 
                 rx.table.root(
