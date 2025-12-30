@@ -1,4 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship
+from pydantic import BaseModel
 from datetime import datetime, timezone
 from enum import Enum
 
@@ -64,6 +65,14 @@ class DocumentoModificar(DocumentoBase):
     tipo: TipoDocumento
     estado: EstadoDocumento
     
+
+class DocumentoPatchSchema(BaseModel):
+    titulo: str | None = None
+    subtitulo: str | None = None
+    descripcion: str | None = None
+    origen: str | None = None
+    seccion: str | None = None
+    estado: str | None = None
 
     
     

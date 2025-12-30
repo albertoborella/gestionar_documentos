@@ -20,7 +20,7 @@ def fila_documento(doc):
                 ),
                 rx.link(
                     "Editar",
-                    href=DocumentosState.url_editar_documento(doc.id),
+                    href=f"/editar-documento/{doc.id}",
                 ),
                 spacing="3",
             )

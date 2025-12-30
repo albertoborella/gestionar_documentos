@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 from sqlalchemy import or_
 
 from database import get_session
-from models import Documento, DocumentoModificar, EstadoDocumento, OrigenDocumento, SeccionDocumento, TipoDocumento
+from models import Documento, DocumentoModificar, DocumentoPatchSchema, EstadoDocumento, OrigenDocumento, SeccionDocumento, TipoDocumento
 
 
 
@@ -107,6 +107,31 @@ def modificar_documento(
     session.refresh(documento)
 
     return documento
+
+
+@router.patch("/{documento_id}", response_model=Documento)
+def actualizar_documento(
+    documento_id: int,
+    datos: DocumentoPatchSchema,
+    session: Session = Depends(get_session),
+):
+    # 1️⃣ Buscar documento
+    documento = session.get(Documento, documento_id)
+    if not documento:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+    # 2️⃣ Actualizar solo los campos enviados
+    for campo, valor in datos.model_dump(exclude_unset=True).items():
+        setattr(documento, campo, valor)
+
+    # 3️⃣ Guardar cambios
+    session.add(documento)
+    session.commit()
+    session.refresh(documento)
+
+    return documento
+
+
 
 # ===========================
 # Ver o descargar documento

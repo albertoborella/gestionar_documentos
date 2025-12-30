@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 import reflex as rx
 import httpx
 
@@ -109,8 +110,10 @@ class DocumentosState(rx.State):
     
 
 class DocumentoEditState(rx.State):
-    doc_id: str = ""
+    # --- Identificador (DEBE ser Optional) ---
+    doc_id: Optional[str] = None
 
+    # --- Campos del documento ---
     titulo: str = ""
     subtitulo: str = ""
     descripcion: str = ""
@@ -118,23 +121,16 @@ class DocumentoEditState(rx.State):
     seccion: str = ""
     estado: str = ""
 
-    # def set_origen(self, value: str):
-    #     self.origen = value
-
-    # def set_seccion(self, value: str):
-    #     self.seccion = value
-
-    # def set_estado(self, value: str):
-    #     self.estado = value
-
+    # --- Enums dinámicos ---
     origenes: list[str] = []
     secciones: list[str] = []
     estados: list[str] = []
 
+    # --- Estado UI ---
     loading: bool = False
     error: str = ""
 
-    # --- setters EXPLÍCITOS (evita warnings y futuros errores) ---
+    # --- setters explícitos ---
     def set_titulo(self, value: str):
         self.titulo = value
 
@@ -153,18 +149,37 @@ class DocumentoEditState(rx.State):
     def set_estado(self, value: str):
         self.estado = value
 
+    # --- cargar enums ---
+    async def cargar_enums(self):
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get("http://127.0.0.1:8001/documentos/enums")
+                resp.raise_for_status()
+                data = resp.json()
+
+            self.origenes = data.get("origen", [])
+            self.secciones = data.get("seccion", [])
+            self.estados = data.get("estado", [])
+
+        except Exception as e:
+            self.error = f"Error cargando enums: {e}"
+
+    # --- cargar documento existente ---
     async def cargar_documento(self):
-        # 🔑 tomar el parámetro dinámico de la ruta
-        self.doc_id = self.router.page.params.get("documento_id")
-
-        if not self.doc_id:
-            self.error = "ID de documento no encontrado"
-            return
-
         self.loading = True
         self.error = ""
 
+        # ⚠️ API vigente (aunque esté deprecada)
+        self.doc_id = self.router.page.params.get("id")
+
+        if not self.doc_id:
+            self.error = "ID de documento no encontrado en la URL"
+            self.loading = False
+            return
+
         try:
+            await self.cargar_enums()
+
             async with httpx.AsyncClient() as client:
                 resp = await client.get(
                     f"http://127.0.0.1:8001/documentos/{self.doc_id}"
@@ -172,12 +187,12 @@ class DocumentoEditState(rx.State):
                 resp.raise_for_status()
                 data = resp.json()
 
-            self.titulo = data["titulo"]
-            self.subtitulo = data["subtitulo"]
-            self.descripcion = data["descripcion"]
-            self.origen = data["origen"]
-            self.seccion = data["seccion"]
-            self.estado = data["estado"]
+            self.titulo = data.get("titulo", "")
+            self.subtitulo = data.get("subtitulo", "")
+            self.descripcion = data.get("descripcion", "")
+            self.origen = data.get("origen", "")
+            self.seccion = data.get("seccion", "")
+            self.estado = data.get("estado", "")
 
         except Exception as e:
             self.error = str(e)
@@ -185,7 +200,12 @@ class DocumentoEditState(rx.State):
         finally:
             self.loading = False
 
+    # --- guardar cambios ---
     async def guardar_cambios(self):
+        if not self.doc_id:
+            self.error = "ID de documento no válido"
+            return
+
         self.loading = True
         self.error = ""
 
@@ -200,17 +220,20 @@ class DocumentoEditState(rx.State):
             }
 
             async with httpx.AsyncClient() as client:
-                resp = await client.put(
-                    f"http://127.0.0.1:8001/documentos/{self.documento_id}",
+                resp = await client.patch(
+                    f"http://127.0.0.1:8001/documentos/{self.doc_id}",
                     json=payload,
                 )
                 resp.raise_for_status()
+
+            return rx.redirect("/listar-documentos")
 
         except Exception as e:
             self.error = str(e)
 
         finally:
             self.loading = False
+
 
 
 
