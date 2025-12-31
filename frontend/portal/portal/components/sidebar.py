@@ -8,7 +8,7 @@ def sidebar() -> rx.Component:
 
             rx.link(
                 rx.hstack(
-                    rx.icon("home", size=18),
+                    rx.icon("home", size=12),
                     rx.text("Home"),
                     spacing="2",
                     align="center",
@@ -18,7 +18,7 @@ def sidebar() -> rx.Component:
 
             rx.link(
                 rx.hstack(
-                    rx.icon("folder", size=16),
+                    rx.icon("folder", size=12),
                     rx.text("Listar documentos"),
                     spacing="2",
                     align="center",
@@ -28,12 +28,12 @@ def sidebar() -> rx.Component:
 
             rx.link(
                 rx.hstack(
-                    rx.icon("signal_medium", size=16),
-                    rx.text("Modificar documento"),
+                    rx.icon("file_plus_2", size=12),
+                    rx.text("Guardar documento"),
                     spacing="2",
                     align="center",
                 ),
-                href="/modificar-documento",
+                href="/subir-documento",
             ),
             spacing="3",
             align="start",

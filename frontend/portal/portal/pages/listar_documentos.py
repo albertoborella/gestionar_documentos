@@ -34,9 +34,10 @@ def fila_documento(doc):
     route="/listar-documentos",
     on_load=[
         DocumentosState.cargar_enums,
-        DocumentosState.buscar,
+        DocumentosState.cargar_documentos,
     ]
 )
+
 def listar_documentos() -> rx.Component:
     #return layout(
     return rx.cond(
@@ -51,7 +52,7 @@ def listar_documentos() -> rx.Component:
 
                 rx.vstack(
                 rx.link("Volver al menú >", href="/"),
-                rx.text("Listado de Documentos", font_size="2xl", font_weight="bold"),
+                #rx.text("Listado de Documentos", font_size="2xl", font_weight="bold"),
 
                 # 🔎 FILTROS
                 rx.hstack(
@@ -93,19 +94,19 @@ def listar_documentos() -> rx.Component:
                     wrap="wrap",
                     justify="center",
                     width="100%",
-                    margin_top="-40px",
+                    margin_top="-30px",
                 ),
                 
                 rx.table.root(
                     rx.table.header(
                         rx.table.row(
                             rx.table.column_header_cell("Título"),
-                            rx.table.column_header_cell("Subtítulo"),
+                            rx.table.column_header_cell("Grupo"),
                             rx.table.column_header_cell("Descripción"),
+                            rx.table.column_header_cell("Seccion"),
                             rx.table.column_header_cell("Origen"),
-                            rx.table.column_header_cell("Sección"),
                             rx.table.column_header_cell("Estado"),
-                            rx.table.column_header_cell("Archivo"),
+                            rx.table.column_header_cell("Acciones"),
                         )
                     ),
                     rx.table.body(
@@ -117,7 +118,39 @@ def listar_documentos() -> rx.Component:
                     width="100%",
                     padding="8px",
                 ),
+                rx.center(
+                    rx.hstack(
+                        rx.button(
+                            "◀ Anterior",
+                            on_click=DocumentosState.prev_page,
+                            is_disabled=DocumentosState.page <= 1,
+                            variant="outline",
+                        ),
+
+                        rx.text(
+                            rx.hstack(
+                                rx.text("Página "),
+                                rx.text(DocumentosState.page, font_weight="bold"),
+                                rx.text(" de "),
+                                rx.text(DocumentosState.total_pages, font_weight="bold"),
+                            )
+                        ),
+
+                        rx.button(
+                            "Siguiente ▶",
+                            on_click=DocumentosState.next_page,
+                            is_disabled=DocumentosState.page >= DocumentosState.total_pages,
+                            variant="outline",
+                        ),
+
+                        spacing="4",
+                        align="center",
+                    ),
+                    width="100%",
+                    margin_top="16px",
+                )
+
             ),
+
         )
-    
     )

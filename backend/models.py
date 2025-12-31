@@ -74,5 +74,14 @@ class DocumentoPatchSchema(BaseModel):
     seccion: str | None = None
     estado: str | None = None
 
+
+class DocumentosPaginados(BaseModel):
+    items: list[Documento]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
+
+
     
     

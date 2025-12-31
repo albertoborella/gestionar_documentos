@@ -6,7 +6,8 @@ from sqlmodel import Session, select
 from sqlalchemy import or_
 
 from database import get_session
-from models import Documento, DocumentoModificar, DocumentoPatchSchema, EstadoDocumento, OrigenDocumento, SeccionDocumento, TipoDocumento
+from models import (Documento, DocumentoModificar, DocumentoPatchSchema, DocumentosPaginados,
+                     EstadoDocumento, OrigenDocumento, SeccionDocumento, TipoDocumento)
 
 
 
@@ -199,3 +200,34 @@ async def upload_documento(
     session.refresh(documento)
 
     return documento
+
+
+@router.get("/paginados", response_model=DocumentosPaginados)
+def listar_documentos_paginados(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    session: Session = Depends(get_session),
+):
+    # total de documentos
+    total = session.exec(select(Documento)).count()
+
+    # cálculo de páginas
+    total_pages = max((total + page_size - 1) // page_size, 1)
+    offset = (page - 1) * page_size
+
+    statement = (
+        select(Documento)
+        .offset(offset)
+        .limit(page_size)
+    )
+
+    documentos = session.exec(statement).all()
+
+    return {
+        "items": documentos,
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "total_pages": total_pages,
+    }
+

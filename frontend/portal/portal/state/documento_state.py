@@ -4,6 +4,9 @@ import reflex as rx
 import httpx
 
 
+# ======================
+# MODELO DOCUMENTO
+# ======================
 class Documento(BaseModel):
     id: int
     titulo: str
@@ -15,23 +18,33 @@ class Documento(BaseModel):
     ruta: str
 
 
+# ======================
+# STATE LISTADO
+# ======================
 class DocumentosState(rx.State):
     documentos: list[Documento] = []
+
+    # paginado
+    page: int = 1
+    page_size: int = 10
+    total_pages: int = 1
+
+    # UI
     loading: bool = False
     error: str = ""
 
-    # Filtros
+    # filtros
     texto: str = ""
     origen: str = ""
     seccion: str = ""
     estado: str = ""
 
-    # Enums dinámicos
+    # enums
     origenes: list[str] = []
     secciones: list[str] = []
     estados: list[str] = []
 
-    # ✅ setters explícitos (evitan warnings y futuro break)
+    # -------- setters --------
     def set_texto(self, value: str):
         self.texto = value
 
@@ -44,27 +57,34 @@ class DocumentosState(rx.State):
     def set_estado(self, value: str):
         self.estado = value
 
+    # -------- enums --------
     async def cargar_enums(self):
         try:
-
             async with httpx.AsyncClient() as client:
                 resp = await client.get(
                     "http://127.0.0.1:8001/documentos/enums"
                 )
+                resp.raise_for_status()
                 data = resp.json()
-                self.origenes = data.get("origen", [])
-                self.secciones = data.get("seccion", [])
-                self.estados = data.get("estado", []) 
+
+            self.origenes = data.get("origen", [])
+            self.secciones = data.get("seccion", [])
+            self.estados = data.get("estado", [])
 
         except Exception as e:
-            self.error = f"Error cargando enums: {e}"  
+            self.error = f"Error cargando enums: {e}"
 
-
-    async def buscar(self):
+    # -------- core paginado --------
+    async def cargar_documentos(self):
         self.loading = True
         self.error = ""
 
-        params = {}
+        params = {
+            "page": self.page,
+            "page_size": self.page_size,
+        }
+
+        # filtros
         if self.texto:
             params["texto"] = self.texto
         if self.origen:
@@ -74,18 +94,17 @@ class DocumentosState(rx.State):
         if self.estado:
             params["estado"] = self.estado
 
-
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(
+                resp = await client.get(
                     "http://127.0.0.1:8001/documentos/buscar",
                     params=params,
                 )
-                response.raise_for_status()
+                resp.raise_for_status()
+                data = resp.json()
 
-                self.documentos = [
-                    Documento(**d) for d in response.json()
-                ]
+            self.documentos = [Documento(**d) for d in data]
+            self.total_pages = max(1, (len(self.documentos) + self.page_size - 1) // self.page_size)
 
         except Exception as e:
             self.error = str(e)
@@ -93,13 +112,30 @@ class DocumentosState(rx.State):
         finally:
             self.loading = False
 
+    # -------- acciones UI --------
+    async def buscar(self):
+        self.page = 1
+        await self.cargar_documentos()
+
     def limpiar_filtros(self):
         self.texto = ""
         self.origen = ""
         self.seccion = ""
         self.estado = ""
-        return DocumentosState.buscar
-    
+        self.page = 1
+        return DocumentosState.cargar_documentos
+
+    async def next_page(self):
+        if self.page < self.total_pages:
+            self.page += 1
+            await self.cargar_documentos()
+
+    async def prev_page(self):
+        if self.page > 1:
+            self.page -= 1
+            await self.cargar_documentos()
+
+    # -------- urls --------
     @staticmethod
     def url_ver_documento(documento_id: int) -> str:
         return f"http://127.0.0.1:8001/documentos/{documento_id}/ver"
@@ -107,13 +143,14 @@ class DocumentosState(rx.State):
     @staticmethod
     def url_editar_documento(documento_id: int) -> str:
         return f"/editar-documento/{documento_id}"
-    
 
+
+# ======================
+# STATE EDICIÓN
+# ======================
 class DocumentoEditState(rx.State):
-    # --- Identificador (DEBE ser Optional) ---
     doc_id: Optional[str] = None
 
-    # --- Campos del documento ---
     titulo: str = ""
     subtitulo: str = ""
     descripcion: str = ""
@@ -121,16 +158,14 @@ class DocumentoEditState(rx.State):
     seccion: str = ""
     estado: str = ""
 
-    # --- Enums dinámicos ---
     origenes: list[str] = []
     secciones: list[str] = []
     estados: list[str] = []
 
-    # --- Estado UI ---
     loading: bool = False
     error: str = ""
 
-    # --- setters explícitos ---
+    # setters
     def set_titulo(self, value: str):
         self.titulo = value
 
@@ -149,11 +184,12 @@ class DocumentoEditState(rx.State):
     def set_estado(self, value: str):
         self.estado = value
 
-    # --- cargar enums ---
     async def cargar_enums(self):
         try:
             async with httpx.AsyncClient() as client:
-                resp = await client.get("http://127.0.0.1:8001/documentos/enums")
+                resp = await client.get(
+                    "http://127.0.0.1:8001/documentos/enums"
+                )
                 resp.raise_for_status()
                 data = resp.json()
 
@@ -164,16 +200,14 @@ class DocumentoEditState(rx.State):
         except Exception as e:
             self.error = f"Error cargando enums: {e}"
 
-    # --- cargar documento existente ---
     async def cargar_documento(self):
         self.loading = True
         self.error = ""
 
-        # ⚠️ API vigente (aunque esté deprecada)
         self.doc_id = self.router.page.params.get("id")
 
         if not self.doc_id:
-            self.error = "ID de documento no encontrado en la URL"
+            self.error = "ID de documento no encontrado"
             self.loading = False
             return
 
@@ -200,10 +234,9 @@ class DocumentoEditState(rx.State):
         finally:
             self.loading = False
 
-    # --- guardar cambios ---
     async def guardar_cambios(self):
         if not self.doc_id:
-            self.error = "ID de documento no válido"
+            self.error = "ID inválido"
             return
 
         self.loading = True
@@ -233,6 +266,7 @@ class DocumentoEditState(rx.State):
 
         finally:
             self.loading = False
+
 
 
 
